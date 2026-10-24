@@ -27,7 +27,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .st{margin-top:12px;padding:8px 12px;border-left:3px solid var(--line);font-size:13px;color:var(--mute);background:var(--soft);border-radius:0 8px 8px 0}
 .st.ok{border-color:var(--good);color:var(--ink)}.st.err{border-color:var(--bad);color:var(--bad)}
 .listbar{display:flex;justify-content:space-between;align-items:center;margin-top:12px}.listbar label{margin:0}
-.list{max-height:150px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:4px 12px 8px;margin-top:6px;font:12px ui-monospace,monospace;background:var(--soft)}
+.list{max-height:170px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:4px 12px 8px;margin-top:6px;font:12px ui-monospace,monospace;background:var(--soft)}
 .chk{display:flex;gap:8px;align-items:center;font-weight:400;font-size:13px;margin:6px 0 0;word-break:break-all;cursor:pointer}
 .chk input{accent-color:var(--acc)}
 details{margin-top:14px;border:1px solid var(--line);border-radius:8px;padding:8px 12px}
@@ -67,25 +67,25 @@ pre{margin:8px 0 0;background:var(--log);color:var(--logink);padding:12px;border
 <label class="chk"><input id="ec2" type="checkbox" checked> Hitung total entry di latar belakang (untuk persen &amp; estimasi)</label>
 <label class="chk"><input id="ef" type="checkbox"> Mulai dari awal (hapus progres &amp; data tersimpan DataStore ini)</label></details>
 <div class="actions"><button id="eb" disabled>Mulai / lanjutkan</button><button class="ghost" id="ex" disabled>Stop</button></div>
-<div class="bar"><i id="egi"></i></div><div class="stat" id="et"></div><pre id="el"></pre>
-<div class="listbar"><label>Hasil ekspor tersimpan di browser</label><button class="link" id="sr">Muat ulang</button></div>
-<div class="list" id="sv"></div></section>
+<div class="bar"><i id="egi"></i></div><div class="stat" id="et"></div><pre id="el"></pre></section>
 
 <section class="card"><div class="head"><b>2</b><h2>Impor</h2><small>ke place tujuan</small></div>
 <div class="pid"><div><label for="ip">Place ID tujuan</label><input id="ip" type="text" inputmode="numeric"></div>
 <button class="ghost" id="iv">Validasi</button></div>
 <div class="st" id="is">Belum divalidasi.</div>
-<div style="margin-top:12px"><label for="ifile">File hasil ekspor (*.jsonl, boleh pilih banyak)</label>
-<input id="ifile" type="file" multiple accept=".jsonl,.ndjson,.txt"></div>
+<div class="listbar"><label>Hasil ekspor (otomatis muncul di sini)</label><span><button class="link" id="ica">Semua</button> · <button class="link" id="sr">Muat ulang</button></span></div>
+<div class="list" id="ic"></div>
 <details><summary>Pengaturan lanjutan</summary>
 <div class="row"><div><label for="ir">Request/menit</label><input id="ir" type="number" value="280" min="10" max="300"></div>
 <div><label for="in">Paralel (batch)</label><input id="in" type="number" value="3" min="1" max="8"></div></div>
 <label class="chk"><input id="io" type="checkbox"> Timpa entry yang sudah ada</label>
-<label class="chk"><input id="if" type="checkbox"> Mulai dari awal (abaikan progres impor file ini)</label></details>
+<label class="chk"><input id="if" type="checkbox"> Mulai dari awal (abaikan progres impor)</label>
+<div style="margin-top:12px"><label for="ifile">Atau impor dari file di komputer (*.jsonl, opsional, boleh banyak)</label>
+<input id="ifile" type="file" multiple accept=".jsonl,.ndjson,.txt"></div></details>
 <div class="actions"><button id="ib" disabled>Mulai / lanjutkan</button><button class="ghost" id="ix" disabled>Stop</button></div>
 <div class="bar"><i id="igi"></i></div><div class="stat" id="it"></div><pre id="il"></pre></section>
 </div>
-<p class="note">Izin API key (universe-datastores): ekspor butuh List Datastores, List Entries, Read Entry; impor butuh List Datastores, Create Entry, Update Entry. Satu key cukup kalau sumber dan tujuan milik creator / group yang sama. Batas Roblox 300 request/menit per universe dipakai bersama server game yang sedang berjalan. Data ekspor disimpan di browser ini (IndexedDB): unduh hasilnya sebelum menghapus data situs. Entry di atas ~3 MB tidak bisa melewati proxy.</p>
+<p class="note">Izin API key (universe-datastores): ekspor butuh List Datastores, List Entries, Read Entry; impor butuh List Datastores, Create Entry, Update Entry. Satu key cukup kalau sumber dan tujuan milik creator / group yang sama. Batas Roblox 300 request/menit per universe dipakai bersama server game yang sedang berjalan. Hasil ekspor disimpan di browser ini (IndexedDB) dan langsung bisa diimpor tanpa diunduh. Tombol Unduh hanya untuk cadangan: unduh sebelum menghapus data situs. Entry di atas ~3 MB tidak bisa melewati proxy.</p>
 </main>
 <script>
 const $=id=>document.getElementById(id),state={ex:null,im:null},cur={},enc=encodeURIComponent;
@@ -102,10 +102,10 @@ function fill(items){
     const c=Object.assign(document.createElement('input'),{type:'checkbox',value:v,checked:true});c.onchange=refresh;l.append(c,' '+v);return l}));
   $('ec').hidden=$('ecb').hidden=!items.length;refresh();
 }
-const selAll=()=>{const cs=[...$('ec').querySelectorAll('input')],all=cs.every(c=>c.checked);cs.forEach(c=>c.checked=!all);refresh()};
+const selAll=box=>{const cs=[...$(box).querySelectorAll('input')],all=cs.every(c=>c.checked);cs.forEach(c=>c.checked=!all);refresh()};
 function refresh(){
   $('eb').disabled=!(state.ex&&checked('ec').length)||!!cur.e;
-  $('ib').disabled=!(state.im&&$('ifile').files.length)||!!cur.i;
+  $('ib').disabled=!(state.im&&(checked('ic').length||$('ifile').files.length))||!!cur.i;
 }
 function setSt(id,cls,t){const e=$(id);e.className='st '+cls;e.textContent=t}
 const nm=r=>{const a=r.placeName,b=r.experienceName;return a&&b&&a!==b?`"${a}" (experience "${b}")`:a||b?`"${a||b}"`:'place ini'};
@@ -125,6 +125,8 @@ async function savePart(pid,s,part,text,m){const t=(await idbp).transaction(['pa
   t.objectStore('meta').put(m,`ex|${pid}|${enc(s)}`);return txDone(t)}
 async function delStore(pid,s){const t=(await idbp).transaction(['parts','meta'],'readwrite');
   t.objectStore('parts').delete(range(`${pid}|${enc(s)}|`));t.objectStore('meta').delete(`ex|${pid}|${enc(s)}`);return txDone(t)}
+const partKeys=async m=>rq((await idbp).transaction('parts').objectStore('parts').getAllKeys(range(`${m.placeId}|${enc(m.store)}|`)));
+const partGet=async k=>rq((await idbp).transaction('parts').objectStore('parts').get(k));
 
 // ---------- timer yang tidak di-throttle saat tab di latar belakang ----------
 const tw=new Worker(URL.createObjectURL(new Blob(['onmessage=e=>setTimeout(()=>postMessage(e.data.id),e.data.ms)'])));
@@ -200,6 +202,7 @@ async function doExport(ctx){
     const m=(await mget(`ex|${pid}|${enc(s)}`))||{placeId:pid,store:s,cursor:'',done:false,total:0,n:0,part:0};
     if(m.done)m.total=m.n;metas[s]=m;
   }
+  renderSaved();
   const P0=stores.reduce((a,s)=>a+metas[s].n,0);
   let countDone=stores.every(s=>metas[s].total),found=0;
   const T=()=>countDone?stores.reduce((a,s)=>a+metas[s].total,0):0;
@@ -220,7 +223,7 @@ async function doExport(ctx){
       const m=metas[s];if(m.done){ctx.log(`Lewati "${s}" (sudah selesai)`);continue}
       ctx.log(`${m.cursor?'Lanjut':'Mulai'} "${s}"`);
       let buf=[],cursor=m.cursor,nAcc=m.n;
-      const save=async done=>{const text=buf.join(''),part=text?++m.part:m.part;m.cursor=cursor;m.n=nAcc;m.done=done;await savePart(pid,s,part,text,m);buf=[]};
+      const save=async done=>{const text=buf.join(''),part=text?++m.part:m.part;m.cursor=cursor;m.n=nAcc;m.done=done;await savePart(pid,s,part,text,m);buf=[];renderSaved().catch(()=>{})};
       do{
         const p=await call(ctx,'list',{universeId:uid,key,store:s,cursor});
         const {lines,complete}=await fetchEntries(ctx,uid,key,s,p.keys,()=>{sess++;tick(s)});
@@ -231,28 +234,35 @@ async function doExport(ctx){
       if(buf.length||cursor!==m.cursor)await save(false);
       tick(s,true);if(!ctx.stop)ctx.log(`Selesai "${s}"`);
     }
-    ctx.log(`${ctx.stop?'Dihentikan':'Selesai'}: ${ctx.total} entry diekspor, ${ctx.failed} gagal. Data tersimpan di browser, unduh dari daftar di bawah.`);
+    ctx.log(`${ctx.stop?'Dihentikan':'Selesai'}: ${ctx.total} entry diekspor, ${ctx.failed} gagal. Hasil sudah muncul di kartu Impor.`);
   }finally{
     ctx.stop=true;await counter.catch(()=>{});
     await Promise.all(stores.map(s=>mput(`ex|${pid}|${enc(s)}`,metas[s])));
   }
 }
 async function download(m){
-  const pfx=`${m.placeId}|${enc(m.store)}|`,keys=await rq((await idbp).transaction('parts').objectStore('parts').getAllKeys(range(pfx)));
-  const get=async k=>rq((await idbp).transaction('parts').objectStore('parts').get(k));
+  const keys=await partKeys(m);
   const name=`${m.placeId}__${m.store.replace(/[^\w.-]/g,'_')}.jsonl`;
-  if(window.showSaveFilePicker){const w=await (await showSaveFilePicker({suggestedName:name})).createWritable();for(const k of keys)await w.write(await get(k));await w.close()}
-  else{const parts=[];for(const k of keys)parts.push(await get(k));
+  if(window.showSaveFilePicker){const w=await (await showSaveFilePicker({suggestedName:name})).createWritable();for(const k of keys)await w.write(await partGet(k));await w.close()}
+  else{const parts=[];for(const k of keys)parts.push(await partGet(k));
     Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob(parts,{type:'application/x-ndjson'})),download:name}).click()}
 }
 const btn=(t,f)=>Object.assign(document.createElement('button'),{textContent:t,onclick:f,className:'link'});
+
+// daftar hasil ekspor di kartu Impor (otomatis dari penyimpanan browser)
 async function renderSaved(){
-  const rows=await mlist('ex|'),box=$('sv');
-  if(!rows.length){box.textContent='Belum ada data tersimpan.';return}
-  box.replaceChildren(...rows.map(([,m])=>{const d=document.createElement('div'),t=document.createElement('span');d.className='chk';t.style.flex='1';
-    t.textContent=`${m.placeId} · ${m.store} — ${m.n.toLocaleString()} entry · ${m.done?'selesai':'belum selesai (bisa dilanjutkan)'}`;
-    d.append(t,btn('Unduh',()=>download(m).catch(e=>e.name!=='AbortError'&&alert(e.message))),
-      btn('Hapus',async()=>{if(confirm(`Hapus data tersimpan "${m.store}" (place ${m.placeId})?`)){await delStore(m.placeId,m.store);renderSaved()}}));return d}));
+  const rows=await mlist('ex|'),box=$('ic');
+  const off=new Set([...box.querySelectorAll('input:not(:checked)')].map(i=>i.value));
+  if(!rows.length){box.textContent='Belum ada hasil ekspor. Jalankan ekspor di sebelah kiri, hasilnya otomatis muncul di sini.';refresh();return}
+  box.replaceChildren(...rows.map(([k,m])=>{
+    const d=document.createElement('div'),l=document.createElement('label');d.className='chk';l.className='chk';l.style.cssText='flex:1;margin:0';
+    const c=Object.assign(document.createElement('input'),{type:'checkbox',value:k,checked:!off.has(k)});c.onchange=refresh;
+    l.append(c,` ${m.placeId} · ${m.store} — ${m.n.toLocaleString()} key${m.done?'':' (belum selesai)'}`);
+    d.append(l,
+      btn('Unduh',()=>download(m).catch(e=>e.name!=='AbortError'&&alert(e.message))),
+      btn('Hapus',async()=>{if(confirm(`Hapus data tersimpan "${m.store}" (place ${m.placeId})?`)){await delStore(m.placeId,m.store);renderSaved()}}));
+    return d}));
+  refresh();
 }
 
 // ---------- IMPOR ----------
@@ -262,13 +272,22 @@ async function* readLines(f){
   for(;;){const{done,value}=await rd.read();if(done)break;buf+=value;let i;while((i=buf.indexOf('\n'))>=0){yield buf.slice(0,i);buf=buf.slice(i+1)}}
   if(buf)yield buf;
 }
+async function countSaved(m){let n=0;for(const k of await partKeys(m))n+=(await partGet(k)).split('\n').filter(l=>l.trim()).length;return n}
+async function* savedLines(m){for(const k of await partKeys(m))for(const l of (await partGet(k)).split('\n'))if(l.trim())yield l}
+
 async function doImport(ctx){
   const pid=$('ip').value.trim(),key=imKey(),uid=state.im.universeId,files=[...$('ifile').files],overwrite=$('io').checked;
-  let ok=0,skipped=0,failed=0,sess=0,last=0,name='',T=0,P0=0;const plan=[];
-  ctx.log('Menghitung jumlah entry di file...');
-  for(const f of files){const mk=`im|${pid}|${f.name}|${f.size}`;if($('if').checked)await mdel(mk);
-    const st=(await mget(mk))||{line:0},n=await countLines(f);T+=n;P0+=Math.min(st.line,n);plan.push({f,mk,start:st.line})}
-  ctx.log(`Total ${T.toLocaleString()} entry di ${plan.length} file (${P0.toLocaleString()} sudah diproses sebelumnya)`);
+  let ok=0,skipped=0,failed=0,sess=0,last=0,name='',T=0,P0=0;
+  const sources=[];
+  for(const k of checked('ic')){const m=await mget(k);if(!m)continue;
+    sources.push({name:`${m.store} (${m.placeId})`,mk:`im|${pid}|${k}`,count:()=>countSaved(m),lines:()=>savedLines(m)})}
+  for(const f of files)sources.push({name:f.name,mk:`im|${pid}|${f.name}|${f.size}`,count:()=>countLines(f),lines:()=>readLines(f)});
+  if(!sources.length)throw new Error('Tidak ada sumber yang dipilih');
+  const plan=[];
+  ctx.log('Menghitung jumlah entry...');
+  for(const s of sources){if($('if').checked)await mdel(s.mk);
+    const st=(await mget(s.mk))||{line:0},n=await s.count();T+=n;P0+=Math.min(st.line,n);plan.push({...s,start:st.line})}
+  ctx.log(`Total ${T.toLocaleString()} entry di ${plan.length} sumber (${P0.toLocaleString()} sudah diproses sebelumnya)`);
   const t0=Date.now();
   const tick=force=>{if(!force&&Date.now()-last<1000)return;last=Date.now();
     const s=ok+skipped+failed,el=(Date.now()-t0)/1000,m={name,count:P0+s,failed,processed:P0+s,total:T,perSec:+(s/el).toFixed(1),eta:s>=5?Math.max(T-P0-s,0)/(s/el):null};
@@ -296,15 +315,15 @@ async function doImport(ctx){
   const group=lines=>{const gs=[];let g=[],sz=0;
     for(const l of lines){if(g.length&&(g.length>=ctx.batch||sz+l.length>3e6)){gs.push(g);g=[];sz=0}g.push(l);sz+=l.length}
     if(g.length)gs.push(g);return gs};
-  for(const {f,mk,start} of plan){
-    name=f.name;let idx=0,chunk=[];ctx.log(`${start?'Lanjut':'Mulai'} ${f.name}`);
-    const flush=async upTo=>{const gs=group(chunk);chunk=[];await Promise.all(gs.map(sendGroup));await mput(mk,{line:upTo})};
-    for await(const line of readLines(f)){
-      idx++;if(idx<=start||!line.trim())continue;
+  for(const p of plan){
+    name=p.name;let idx=0,chunk=[];ctx.log(`${p.start?'Lanjut':'Mulai'} ${p.name}`);
+    const flush=async upTo=>{const gs=group(chunk);chunk=[];await Promise.all(gs.map(sendGroup));await mput(p.mk,{line:upTo})};
+    for await(const line of p.lines()){
+      idx++;if(idx<=p.start||!line.trim())continue;
       chunk.push(line);if(chunk.length>=ctx.par*ctx.batch)await flush(idx);
     }
-    if(chunk.length)await flush(idx);else await mput(mk,{line:idx});
-    tick(true);ctx.log(`Selesai ${f.name}`);
+    if(chunk.length)await flush(idx);else await mput(p.mk,{line:idx});
+    tick(true);ctx.log(`Selesai ${p.name}`);
   }
   ctx.log(`Selesai: ${ok} berhasil, ${skipped} dilewati (sudah ada), ${failed} gagal`);
 }
@@ -316,7 +335,7 @@ $('ak').oninput=()=>{resetEx();if(!$('diff').checked)resetIm()};
 $('ep').oninput=resetEx;$('ak2').oninput=resetIm;$('ip').oninput=resetIm;$('ifile').onchange=refresh;
 $('diff').onchange=()=>{const d=$('diff').checked;$('k2wrap').hidden=!d;$('akl').textContent=d?'API key sumber (ekspor)':'API key Roblox';resetIm()};
 $('eye').onclick=()=>{const hide=$('ak').type==='password';$('ak').type=$('ak2').type=hide?'text':'password';$('eye').textContent=hide?'Sembunyikan':'Lihat'};
-$('eca').onclick=selAll;$('sr').onclick=renderSaved;
+$('eca').onclick=()=>selAll('ec');$('ica').onclick=()=>selAll('ic');$('sr').onclick=renderSaved;
 $('ev').onclick=async()=>{
   $('ev').disabled=true;setSt('es','','Memvalidasi & scan...');state.ex=null;
   try{const r=await api('validate',{placeId:$('ep').value.trim(),key:exKey()});
