@@ -1,7 +1,8 @@
-// Proxy stateless ke Roblox DataStore (Vercel Serverless Function). Wajib: env ACCESS_PASSWORD.
+// Proxy stateless ke Roblox DataStore + Ordered DataStore (Vercel Serverless Function). Wajib: env ACCESS_PASSWORD.
 const crypto = require('crypto');
 const enc = encodeURIComponent;
 const BASE = u => `https://apis.roblox.com/datastores/v1/universes/${u}/standard-datastores`;
+const OBASE = (u, n, s) => `https://apis.roblox.com/ordered-data-stores/v1/universes/${u}/orderedDataStores/${enc(n)}/scopes/${enc(s)}/entries`;
 const CAP = 3000000; // batas ukuran respons per panggilan (batas Vercel 4.5 MB)
 const err = (msg, status) => Object.assign(new Error(msg), { status });
 const sig = () => AbortSignal.timeout(20000);
@@ -16,8 +17,18 @@ const okPw = req => {
 };
 const pool = (n, fn) => Promise.all(Array.from({ length: n }, fn));
 
+// Tes baca 1 entry dari ordered datastore (nama & scope harus diketahui, tidak ada API untuk daftar nama)
+const checkOrdered = async (u, key, o) => {
+  try {
+    const r = await rb(`${OBASE(u, o.name, o.scope || 'global')}?max_page_size=1`, key);
+    if (!r.ok) return { ok: false, error: `HTTP ${r.status} ${await short(r)}` };
+    const d = await r.json();
+    return { ok: true, empty: !(d.entries || []).length };
+  } catch (e) { return { ok: false, error: e.message }; }
+};
+
 const OPS = {
-  async validate({ placeId, key }) {
+  async validate({ placeId, key, ordered, tolerant }) {
     if (!/^\d+$/.test(String(placeId))) throw err('Place ID harus berupa angka', 400);
     if (!key) throw err('API key wajib diisi', 400);
     const ur = await fetch(`https://apis.roblox.com/universes/v1/places/${placeId}/universe`, { signal: sig() });
@@ -25,14 +36,22 @@ const OPS = {
     const universeId = (await ur.json()).universeId; if (!universeId) throw err('Place ID tidak punya universe', 404);
     const get = async u => { try { const r = await fetch(u, { signal: AbortSignal.timeout(5000) }); return r.ok ? await r.json() : null; } catch { return null; } };
     const [g, e] = await Promise.all([get(`https://games.roblox.com/v1/games?universeIds=${universeId}`), get(`https://economy.roblox.com/v2/assets/${placeId}/details`)]);
-    const stores = []; let c = '';
-    for (let i = 0; i < 100; i++) {
-      const r = await rb(`${BASE(universeId)}?limit=100${c ? `&cursor=${enc(c)}` : ''}`, key);
-      if (r.status === 401 || r.status === 403) throw err(`API key ditolak. Detail dari Roblox: HTTP ${r.status} ${await short(r)}`, r.status);
-      await must(r); const d = await r.json();
-      stores.push(...(d.datastores || []).map(s => s.name)); c = d.nextPageCursor || ''; if (!c) break;
+    const hasOrd = !!(ordered && ordered.name);
+    const stores = []; let storesError = null;
+    try {
+      let c = '';
+      for (let i = 0; i < 100; i++) {
+        const r = await rb(`${BASE(universeId)}?limit=100${c ? `&cursor=${enc(c)}` : ''}`, key);
+        if (r.status === 401 || r.status === 403) throw err(`API key ditolak. Detail dari Roblox: HTTP ${r.status} ${await short(r)}`, r.status);
+        await must(r); const d = await r.json();
+        stores.push(...(d.datastores || []).map(s => s.name)); c = d.nextPageCursor || ''; if (!c) break;
+      }
+    } catch (er) {
+      if (!(tolerant || hasOrd)) throw er; // key mungkin hanya punya izin ordered
+      storesError = er.message;
     }
-    return { universeId, placeName: e?.Name || null, experienceName: g?.data?.[0]?.name || null, stores };
+    const ord = hasOrd ? await checkOrdered(universeId, key, ordered) : null;
+    return { universeId, placeName: e?.Name || null, experienceName: g?.data?.[0]?.name || null, stores, storesError, ordered: ord };
   },
 
   async list({ universeId, key, store, cursor }) {
@@ -40,6 +59,14 @@ const OPS = {
     const r = await must(await rb(`${BASE(universeId)}/datastore/entries?datastoreName=${enc(store)}&AllScopes=true&limit=100${cursor ? `&cursor=${enc(cursor)}` : ''}`, key));
     const d = await r.json();
     return { keys: (d.keys || []).map(k => ({ scope: k.scope, key: k.key })), next: d.nextPageCursor || '' };
+  },
+
+  // Ordered datastore: entry + nilai datang langsung dari list (100 per request)
+  async olist({ universeId, key, name, scope, cursor }) {
+    uid(universeId);
+    const r = await must(await rb(`${OBASE(universeId, name, scope || 'global')}?max_page_size=100&order_by=desc${cursor ? `&page_token=${enc(cursor)}` : ''}`, key));
+    const d = await r.json();
+    return { entries: (d.entries || []).map(e => ({ id: e.id || String(e.path || '').split('/').pop(), value: e.value })), next: d.nextPageToken || '' };
   },
 
   // baca banyak entry; hasil null = belum diproses (batas ukuran), klien mengulang
@@ -61,6 +88,7 @@ const OPS = {
     return { results };
   },
 
+  // tulis entry biasa dan ordered (entry dengan ordered:true)
   async set({ universeId, key, entries, overwrite }) {
     uid(universeId); entries = (entries || []).slice(0, 50);
     const results = new Array(entries.length); let i = 0;
@@ -69,11 +97,21 @@ const OPS = {
         const n = i++, e = entries[n];
         try {
           if (e.value === undefined) { results[n] = { status: 400, error: 'value kosong' }; continue; }
-          const body = JSON.stringify(e.value);
-          const h = { 'content-type': 'application/json', 'content-md5': crypto.createHash('md5').update(body).digest('base64') };
-          if (e.attributes && Object.keys(e.attributes).length) h['roblox-entry-attributes'] = JSON.stringify(e.attributes);
-          if (e.userIds && e.userIds.length) h['roblox-entry-userids'] = JSON.stringify(e.userIds);
-          const r = await rb(`${BASE(universeId)}/datastore/entries/entry?datastoreName=${enc(e.datastore)}&scope=${enc(e.scope || 'global')}&entryKey=${enc(e.key)}${overwrite ? '' : '&exclusiveCreate=true'}`, key, { method: 'POST', headers: h, body });
+          let r;
+          if (e.ordered) { // Ordered DataStore: nilai harus bilangan bulat
+            const v = Math.trunc(Number(e.value));
+            if (!Number.isFinite(v)) { results[n] = { status: 400, error: 'nilai ordered bukan angka' }; continue; }
+            const base = OBASE(universeId, e.datastore, e.scope || 'global'), h = { 'content-type': 'application/json' }, body = JSON.stringify({ value: v });
+            r = overwrite
+              ? await rb(`${base}/${enc(e.key)}?allow_missing=true`, key, { method: 'PATCH', headers: h, body })
+              : await rb(`${base}?id=${enc(e.key)}`, key, { method: 'POST', headers: h, body });
+          } else {
+            const body = JSON.stringify(e.value);
+            const h = { 'content-type': 'application/json', 'content-md5': crypto.createHash('md5').update(body).digest('base64') };
+            if (e.attributes && Object.keys(e.attributes).length) h['roblox-entry-attributes'] = JSON.stringify(e.attributes);
+            if (e.userIds && e.userIds.length) h['roblox-entry-userids'] = JSON.stringify(e.userIds);
+            r = await rb(`${BASE(universeId)}/datastore/entries/entry?datastoreName=${enc(e.datastore)}&scope=${enc(e.scope || 'global')}&entryKey=${enc(e.key)}${overwrite ? '' : '&exclusiveCreate=true'}`, key, { method: 'POST', headers: h, body });
+          }
           results[n] = { status: r.status, retryAfter: ra(r), error: r.ok ? '' : await short(r) };
         } catch (er) { results[n] = { status: 599, error: er.message }; }
       }
