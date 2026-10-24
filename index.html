@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DataStore Transfer</title>
+<style>
+:root{--bg:#f1f2f6;--panel:#fff;--soft:#f6f7fb;--ink:#161a24;--mute:#667086;--line:#dde0ea;--acc:#3d52f5;--acc2:#e9ecff;--acc-ink:#fff;--log:#10131d;--logink:#c5cfeb;--bad:#c62828;--good:#16803a}
+@media(prefers-color-scheme:dark){:root{--bg:#0c0f16;--panel:#151a25;--soft:#1b2130;--ink:#e9ecf5;--mute:#8d96ab;--line:#272e41;--acc:#7389ff;--acc2:#222a4d;--acc-ink:#0c0f16;--log:#080a10;--logink:#b5c0de;--bad:#ff7b7b;--good:#5fd38a}}
+*{box-sizing:border-box}[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:1040px;margin:0 auto;padding:36px 20px 60px}
+header{margin-bottom:22px}h1{font-size:28px;letter-spacing:-.02em;margin:0}header p{margin:4px 0 0;color:var(--mute);max-width:660px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px}
+.conn{margin-bottom:20px;display:grid;gap:14px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}@media(max-width:800px){.grid{grid-template-columns:1fr}}
+.head{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.head b{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--acc2);color:var(--acc);font-size:13px}
+h2{font-size:17px;margin:0}.head small{color:var(--mute);margin-left:auto}
+label{display:block;font-weight:600;font-size:13px;margin:0 0 5px}
+input[type=text],input[type=password],input[type=number],input[type=file]{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--soft);color:inherit;font:inherit}
+input:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.inp{display:flex;gap:8px}.inp input{flex:1}
+.pid{display:flex;gap:10px;align-items:end;margin-top:12px}.pid>div{flex:1}
+button{padding:10px 16px;border:0;border-radius:8px;background:var(--acc);color:var(--acc-ink);font:600 14px system-ui;cursor:pointer;white-space:nowrap}
+button.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+button.link{background:none;color:var(--acc);padding:2px 6px;font-weight:600;font-size:12px}
+button:disabled{opacity:.45;cursor:not-allowed}
+.sw{display:flex;gap:10px;align-items:center;font-weight:500;margin:0;cursor:pointer}.sw input{width:16px;height:16px;accent-color:var(--acc)}
+.st{margin-top:12px;padding:8px 12px;border-left:3px solid var(--line);font-size:13px;color:var(--mute);background:var(--soft);border-radius:0 8px 8px 0}
+.st.ok{border-color:var(--good);color:var(--ink)}.st.err{border-color:var(--bad);color:var(--bad)}
+.listbar{display:flex;justify-content:space-between;align-items:center;margin-top:12px}.listbar label{margin:0}
+.list{max-height:150px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:4px 12px 8px;margin-top:6px;font:12px ui-monospace,monospace;background:var(--soft)}
+.chk{display:flex;gap:8px;align-items:center;font-weight:400;font-size:13px;margin:6px 0 0;word-break:break-all;cursor:pointer}
+.chk input{accent-color:var(--acc)}
+details{margin-top:14px;border:1px solid var(--line);border-radius:8px;padding:8px 12px}
+summary{cursor:pointer;font-weight:600;font-size:13px;color:var(--mute)}
+.row{display:flex;gap:10px;margin:10px 0 4px}.row>div{flex:1}
+.actions{display:flex;gap:8px;margin-top:16px}.actions button:first-child{flex:2}.actions button:last-child{flex:1}
+.bar{height:6px;border-radius:99px;background:var(--soft);margin-top:16px;overflow:hidden;border:1px solid var(--line)}
+.bar i{display:block;height:100%;width:0;background:var(--acc);transition:width .4s}
+.stat{margin-top:8px;font:12.5px ui-monospace,monospace;min-height:20px;color:var(--ink)}
+pre{margin:8px 0 0;background:var(--log);color:var(--logink);padding:12px;border-radius:8px;height:140px;overflow:auto;font:12px/1.5 ui-monospace,monospace;white-space:pre-wrap}
+.note{font-size:13px;color:var(--mute);margin-top:22px;max-width:840px}
+</style></head><body><main>
+<header><h1>DataStore Transfer</h1>
+<p>Salin DataStore dari satu place ke place lain lewat Roblox Open Cloud. Proses berjalan di browser dan bisa dilanjutkan kalau terputus. Biarkan tab ini tetap terbuka selama proses.</p></header>
+
+<section class="card conn">
+<div><label for="pw">Password akses (ACCESS_PASSWORD di Vercel)</label>
+<input id="pw" type="password" autocomplete="off" placeholder="Password yang kamu atur saat deploy"></div>
+<div><label for="ak" id="akl">API key Roblox</label>
+<div class="inp"><input id="ak" type="password" autocomplete="off" placeholder="Tempel API key Open Cloud (universe-datastores)">
+<button class="ghost" id="eye" type="button">Lihat</button></div></div>
+<label class="sw"><input type="checkbox" id="diff"><span>Place tujuan beda creator / group (pakai API key berbeda)</span></label>
+<div id="k2wrap" hidden><label for="ak2">API key tujuan (impor)</label>
+<input id="ak2" type="password" autocomplete="off" placeholder="API key milik creator / group tujuan"></div>
+</section>
+
+<div class="grid">
+<section class="card"><div class="head"><b>1</b><h2>Ekspor</h2><small>dari place sumber</small></div>
+<div class="pid"><div><label for="ep">Place ID sumber</label><input id="ep" type="text" inputmode="numeric"></div>
+<button class="ghost" id="ev">Validasi &amp; scan</button></div>
+<div class="st" id="es">Belum divalidasi.</div>
+<div class="listbar" id="ecb" hidden><label>DataStore yang diekspor</label><button class="link" id="eca">Pilih semua / kosongkan</button></div>
+<div class="list" id="ec" hidden></div>
+<details><summary>Pengaturan lanjutan</summary>
+<div class="row"><div><label for="er">Request/menit</label><input id="er" type="number" value="280" min="10" max="300"></div>
+<div><label for="en">Paralel (batch)</label><input id="en" type="number" value="3" min="1" max="8"></div></div>
+<label class="chk"><input id="ec2" type="checkbox" checked> Hitung total entry di latar belakang (untuk persen &amp; estimasi)</label>
+<label class="chk"><input id="ef" type="checkbox"> Mulai dari awal (hapus progres &amp; data tersimpan DataStore ini)</label></details>
+<div class="actions"><button id="eb" disabled>Mulai / lanjutkan</button><button class="ghost" id="ex" disabled>Stop</button></div>
+<div class="bar"><i id="egi"></i></div><div class="stat" id="et"></div><pre id="el"></pre>
+<div class="listbar"><label>Hasil ekspor tersimpan di browser</label><button class="link" id="sr">Muat ulang</button></div>
+<div class="list" id="sv"></div></section>
+
+<section class="card"><div class="head"><b>2</b><h2>Impor</h2><small>ke place tujuan</small></div>
+<div class="pid"><div><label for="ip">Place ID tujuan</label><input id="ip" type="text" inputmode="numeric"></div>
+<button class="ghost" id="iv">Validasi</button></div>
+<div class="st" id="is">Belum divalidasi.</div>
+<div style="margin-top:12px"><label for="ifile">File hasil ekspor (*.jsonl, boleh pilih banyak)</label>
+<input id="ifile" type="file" multiple accept=".jsonl,.ndjson,.txt"></div>
+<details><summary>Pengaturan lanjutan</summary>
+<div class="row"><div><label for="ir">Request/menit</label><input id="ir" type="number" value="280" min="10" max="300"></div>
+<div><label for="in">Paralel (batch)</label><input id="in" type="number" value="3" min="1" max="8"></div></div>
+<label class="chk"><input id="io" type="checkbox"> Timpa entry yang sudah ada</label>
+<label class="chk"><input id="if" type="checkbox"> Mulai dari awal (abaikan progres impor file ini)</label></details>
+<div class="actions"><button id="ib" disabled>Mulai / lanjutkan</button><button class="ghost" id="ix" disabled>Stop</button></div>
+<div class="bar"><i id="igi"></i></div><div class="stat" id="it"></div><pre id="il"></pre></section>
+</div>
+<p class="note">Izin API key (universe-datastores): ekspor butuh List Datastores, List Entries, Read Entry; impor butuh List Datastores, Create Entry, Update Entry. Satu key cukup kalau sumber dan tujuan milik creator / group yang sama. Batas Roblox 300 request/menit per universe dipakai bersama server game yang sedang berjalan. Data ekspor disimpan di browser ini (IndexedDB): unduh hasilnya sebelum menghapus data situs. Entry di atas ~3 MB tidak bisa melewati proxy.</p>
+</main>
+<script>
+const $=id=>document.getElementById(id),state={ex:null,im:null},cur={},enc=encodeURIComponent;
+const exKey=()=>$('ak').value.trim(),imKey=()=>($('diff').checked?$('ak2'):$('ak')).value.trim();
+const fmt=s=>s==null?'?':s>=3600?(s/3600).toFixed(1)+' jam':s>=60?Math.round(s/60)+' menit':Math.round(s)+' detik';
+const clock=eta=>{if(eta==null)return '';const d=new Date(Date.now()+eta*1000),same=d.toDateString()===new Date().toDateString();
+  return ' | selesai ~'+d.toLocaleString('id-ID',same?{hour:'2-digit',minute:'2-digit'}:{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})};
+const prog=m=>m.total?`${m.processed.toLocaleString()}/${m.total.toLocaleString()} entry (${Math.min(100,m.processed/m.total*100).toFixed(1)}%)`:`${m.count.toLocaleString()} entry`;
+const statLine=m=>`${m.name} | ${prog(m)} | ${m.perSec}/detik | sisa ~${fmt(m.eta)}${clock(m.eta)} | gagal ${m.failed}`;
+const checked=box=>[...$(box).querySelectorAll('input:checked')].map(i=>i.value);
+const parse=t=>{try{return JSON.parse(t)}catch{return t}};
+function fill(items){
+  $('ec').replaceChildren(...items.map(v=>{const l=document.createElement('label');l.className='chk';
+    const c=Object.assign(document.createElement('input'),{type:'checkbox',value:v,checked:true});c.onchange=refresh;l.append(c,' '+v);return l}));
+  $('ec').hidden=$('ecb').hidden=!items.length;refresh();
+}
+const selAll=()=>{const cs=[...$('ec').querySelectorAll('input')],all=cs.every(c=>c.checked);cs.forEach(c=>c.checked=!all);refresh()};
+function refresh(){
+  $('eb').disabled=!(state.ex&&checked('ec').length)||!!cur.e;
+  $('ib').disabled=!(state.im&&$('ifile').files.length)||!!cur.i;
+}
+function setSt(id,cls,t){const e=$(id);e.className='st '+cls;e.textContent=t}
+const nm=r=>{const a=r.placeName,b=r.experienceName;return a&&b&&a!==b?`"${a}" (experience "${b}")`:a||b?`"${a||b}"`:'place ini'};
+
+// ---------- IndexedDB (hasil ekspor + progres) ----------
+const idbp=new Promise((res,rej)=>{const r=indexedDB.open('dstx',1);r.onupgradeneeded=()=>{r.result.createObjectStore('meta');r.result.createObjectStore('parts')};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+const rq=r=>new Promise((res,rej)=>{r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+const txDone=t=>new Promise((res,rej)=>{t.oncomplete=res;t.onerror=t.onabort=()=>rej(t.error)});
+const range=p=>IDBKeyRange.bound(p,p+'\uffff');
+async function mget(k){return rq((await idbp).transaction('meta').objectStore('meta').get(k))}
+async function mput(k,v){const t=(await idbp).transaction('meta','readwrite');t.objectStore('meta').put(v,k);return txDone(t)}
+async function mdel(k){const t=(await idbp).transaction('meta','readwrite');t.objectStore('meta').delete(k);return txDone(t)}
+async function mlist(p){const s=(await idbp).transaction('meta').objectStore('meta'),r=range(p);
+  const [ks,vs]=await Promise.all([rq(s.getAllKeys(r)),rq(s.getAll(r))]);return ks.map((k,i)=>[k,vs[i]])}
+async function savePart(pid,s,part,text,m){const t=(await idbp).transaction(['parts','meta'],'readwrite');
+  if(text)t.objectStore('parts').put(text,`${pid}|${enc(s)}|${String(part).padStart(6,'0')}`);
+  t.objectStore('meta').put(m,`ex|${pid}|${enc(s)}`);return txDone(t)}
+async function delStore(pid,s){const t=(await idbp).transaction(['parts','meta'],'readwrite');
+  t.objectStore('parts').delete(range(`${pid}|${enc(s)}|`));t.objectStore('meta').delete(`ex|${pid}|${enc(s)}`);return txDone(t)}
+
+// ---------- timer yang tidak di-throttle saat tab di latar belakang ----------
+const tw=new Worker(URL.createObjectURL(new Blob(['onmessage=e=>setTimeout(()=>postMessage(e.data.id),e.data.ms)'])));
+const waits=new Map();let wid=0;tw.onmessage=e=>{waits.get(e.data)();waits.delete(e.data)};
+const sleep=ms=>new Promise(r=>{const id=++wid;waits.set(id,r);tw.postMessage({id,ms})});
+
+// ---------- API ke proxy + pembatas kecepatan ----------
+async function api(op,p){
+  let r;
+  try{r=await fetch('/api/rbx',{method:'POST',headers:{'content-type':'application/json','x-access-password':$('pw').value},body:JSON.stringify({op,...p})})}
+  catch(e){throw Object.assign(new Error('Jaringan: '+e.message),{status:0})}
+  if(r.status===401){const j=await r.json().catch(()=>({}));throw Object.assign(new Error(j.error||'Password akses salah'),{fatal:true})}
+  let j;try{j=await r.json()}catch{throw Object.assign(new Error('Respons server tidak valid (HTTP '+r.status+')'),{status:r.status})}
+  if(!j.ok)throw Object.assign(new Error(j.error||'Error'),{status:j.status,retryAfter:j.retryAfter});
+  return j;
+}
+const mkPacer=rate=>({next:0,gap:60000/Math.min(Math.max(rate||280,10),300),
+  async take(n){const t=Math.max(Date.now(),this.next);this.next=t+n*this.gap;if(t>Date.now())await sleep(t-Date.now())},
+  penalty(ms){this.next=Math.max(this.next,Date.now()+ms)}});
+async function call(ctx,op,p){
+  for(let i=0;i<10;i++){
+    if(ctx.stop)throw new Error('Dihentikan');
+    await ctx.pacer.take(1);
+    try{return await api(op,p)}
+    catch(e){if(e.fatal||!(e.status===429||e.status>=500||e.status===0))throw e;
+      ctx.pacer.penalty(e.retryAfter?e.retryAfter*1000:Math.min(2000*(i+1),30000))}
+  }
+  throw new Error('Gagal setelah 10 percobaan');
+}
+function newCtx(p){
+  const L=[],logEl=$(p+'l'),statEl=$(p+'t'),barEl=$(p+'gi');
+  logEl.textContent='';statEl.textContent='';barEl.style.width='0';
+  return{stop:false,batch:20,par:Math.min(Math.max(+$(p+'n').value||3,1),8),pacer:mkPacer(+$(p+'r').value),total:0,failed:0,
+    log:m=>{L.push(m);if(L.length>300)L.shift();logEl.textContent=L.join('\n');logEl.scrollTop=logEl.scrollHeight},
+    show:(t,pct)=>{statEl.textContent=t;barEl.style.width=pct+'%'}};
+}
+async function run(p,fn){
+  const ctx=cur[p]=newCtx(p),stopBtn=$(p==='e'?'ex':'ix');
+  stopBtn.disabled=false;refresh();
+  stopBtn.onclick=()=>{ctx.stop=true;ctx.log('Menghentikan... menyimpan progres')};
+  try{await fn(ctx)}catch(e){ctx.log(e.message==='Dihentikan'?'Dihentikan. Progres tersimpan.':'ERROR: '+e.message)}
+  stopBtn.disabled=true;cur[p]=null;refresh();renderSaved();
+}
+window.onbeforeunload=e=>{if(cur.e||cur.i){e.preventDefault();e.returnValue=''}};
+
+// ---------- EKSPOR ----------
+async function fetchEntries(ctx,uid,key,store,keys,onDone){
+  const q=keys.map(k=>({scope:k.scope,key:k.key,tries:0})),lines=[];
+  const retry=(it,msg)=>{if(++it.tries<8)q.push(it);else{ctx.failed++;ctx.log(`GAGAL ${store}/${it.key}: ${msg}`);onDone()}};
+  const handle=async b=>{
+    let r;
+    try{
+      if(ctx.stop)throw new Error('Dihentikan');
+      await ctx.pacer.take(b.length);
+      r=await api('get',{universeId:uid,key,store,items:b.map(x=>({scope:x.scope,key:x.key}))});
+    }catch(e){if(e.fatal)throw e;if(!ctx.stop)ctx.pacer.penalty(3000);b.forEach(x=>retry(x,e.message));return}
+    r.results.forEach((x,i)=>{const it=b[i];
+      if(!x){q.push(it)}
+      else if(x.status===200){lines.push(JSON.stringify({datastore:store,scope:it.scope,key:it.key,value:parse(x.text),attributes:x.attrs,userIds:x.uids})+'\n');ctx.total++;onDone()}
+      else if(x.status===404)onDone();
+      else if(x.status===429||x.status>=500){ctx.pacer.penalty((x.retryAfter||2)*1000);retry(it,'HTTP '+x.status)}
+      else{ctx.failed++;ctx.log(`GAGAL ${store}/${it.key}: HTTP ${x.status} ${x.error||''}`);onDone()}});
+  };
+  const work=async()=>{while(q.length&&!ctx.stop)await handle(q.splice(0,ctx.batch))};
+  while(q.length&&!ctx.stop)await Promise.all(Array.from({length:ctx.par},work));
+  return{lines,complete:!q.length};
+}
+async function doExport(ctx){
+  const pid=$('ep').value.trim(),key=exKey(),uid=state.ex.universeId,stores=checked('ec'),metas={};
+  navigator.storage?.persist?.();
+  for(const s of stores){
+    if($('ef').checked)await delStore(pid,s);
+    const m=(await mget(`ex|${pid}|${enc(s)}`))||{placeId:pid,store:s,cursor:'',done:false,total:0,n:0,part:0};
+    if(m.done)m.total=m.n;metas[s]=m;
+  }
+  const P0=stores.reduce((a,s)=>a+metas[s].n,0);
+  let countDone=stores.every(s=>metas[s].total),found=0;
+  const T=()=>countDone?stores.reduce((a,s)=>a+metas[s].total,0):0;
+  ctx.log(`Universe ${uid} | ${stores.length} DataStore`);
+  const counter=(!countDone&&$('ec2').checked)?(async()=>{
+    for(const s of stores){const m=metas[s];if(m.total)continue;let c='',n=0;
+      do{const p=await call(ctx,'list',{universeId:uid,key,store:s,cursor:c});n+=p.keys.length;found=n;c=p.next||''}while(c&&!ctx.stop);
+      if(ctx.stop)return;m.total=n;ctx.log(`"${s}": ${n.toLocaleString()} entry`)}
+    countDone=true})():Promise.resolve();
+  const t0=Date.now();let sess=0,last=0;
+  const tick=(s,force)=>{if(!force&&Date.now()-last<1000)return;last=Date.now();
+    const el=(Date.now()-t0)/1000,t=T(),m={name:s,count:ctx.total,failed:ctx.failed,processed:P0+sess,total:t,perSec:+(sess/el).toFixed(1),
+      eta:t&&sess>=5?Math.max(t-P0-sess,0)/(sess/el):null};
+    ctx.show((!countDone&&$('ec2').checked?`Menghitung total... ${found.toLocaleString()} key | `:'')+statLine(m),t?Math.min(100,m.processed/t*100):0)};
+  try{
+    for(const s of stores){
+      if(ctx.stop)break;
+      const m=metas[s];if(m.done){ctx.log(`Lewati "${s}" (sudah selesai)`);continue}
+      ctx.log(`${m.cursor?'Lanjut':'Mulai'} "${s}"`);
+      let buf=[],cursor=m.cursor,nAcc=m.n;
+      const save=async done=>{const text=buf.join(''),part=text?++m.part:m.part;m.cursor=cursor;m.n=nAcc;m.done=done;await savePart(pid,s,part,text,m);buf=[]};
+      do{
+        const p=await call(ctx,'list',{universeId:uid,key,store:s,cursor});
+        const {lines,complete}=await fetchEntries(ctx,uid,key,s,p.keys,()=>{sess++;tick(s)});
+        if(!complete)break;
+        buf.push(...lines);nAcc+=p.keys.length;cursor=p.next||'';
+        if(buf.length>=1000||!cursor)await save(!cursor);
+      }while(cursor&&!ctx.stop);
+      if(buf.length||cursor!==m.cursor)await save(false);
+      tick(s,true);if(!ctx.stop)ctx.log(`Selesai "${s}"`);
+    }
+    ctx.log(`${ctx.stop?'Dihentikan':'Selesai'}: ${ctx.total} entry diekspor, ${ctx.failed} gagal. Data tersimpan di browser, unduh dari daftar di bawah.`);
+  }finally{
+    ctx.stop=true;await counter.catch(()=>{});
+    await Promise.all(stores.map(s=>mput(`ex|${pid}|${enc(s)}`,metas[s])));
+  }
+}
+async function download(m){
+  const pfx=`${m.placeId}|${enc(m.store)}|`,keys=await rq((await idbp).transaction('parts').objectStore('parts').getAllKeys(range(pfx)));
+  const get=async k=>rq((await idbp).transaction('parts').objectStore('parts').get(k));
+  const name=`${m.placeId}__${m.store.replace(/[^\w.-]/g,'_')}.jsonl`;
+  if(window.showSaveFilePicker){const w=await (await showSaveFilePicker({suggestedName:name})).createWritable();for(const k of keys)await w.write(await get(k));await w.close()}
+  else{const parts=[];for(const k of keys)parts.push(await get(k));
+    Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob(parts,{type:'application/x-ndjson'})),download:name}).click()}
+}
+const btn=(t,f)=>Object.assign(document.createElement('button'),{textContent:t,onclick:f,className:'link'});
+async function renderSaved(){
+  const rows=await mlist('ex|'),box=$('sv');
+  if(!rows.length){box.textContent='Belum ada data tersimpan.';return}
+  box.replaceChildren(...rows.map(([,m])=>{const d=document.createElement('div'),t=document.createElement('span');d.className='chk';t.style.flex='1';
+    t.textContent=`${m.placeId} · ${m.store} — ${m.n.toLocaleString()} entry · ${m.done?'selesai':'belum selesai (bisa dilanjutkan)'}`;
+    d.append(t,btn('Unduh',()=>download(m).catch(e=>e.name!=='AbortError'&&alert(e.message))),
+      btn('Hapus',async()=>{if(confirm(`Hapus data tersimpan "${m.store}" (place ${m.placeId})?`)){await delStore(m.placeId,m.store);renderSaved()}}));return d}));
+}
+
+// ---------- IMPOR ----------
+async function countLines(f){const rd=f.stream().getReader();let n=0;for(;;){const{done,value}=await rd.read();if(done)break;for(let i=0;i<value.length;i++)if(value[i]===10)n++}return n}
+async function* readLines(f){
+  const rd=f.stream().pipeThrough(new TextDecoderStream()).getReader();let buf='';
+  for(;;){const{done,value}=await rd.read();if(done)break;buf+=value;let i;while((i=buf.indexOf('\n'))>=0){yield buf.slice(0,i);buf=buf.slice(i+1)}}
+  if(buf)yield buf;
+}
+async function doImport(ctx){
+  const pid=$('ip').value.trim(),key=imKey(),uid=state.im.universeId,files=[...$('ifile').files],overwrite=$('io').checked;
+  let ok=0,skipped=0,failed=0,sess=0,last=0,name='',T=0,P0=0;const plan=[];
+  ctx.log('Menghitung jumlah entry di file...');
+  for(const f of files){const mk=`im|${pid}|${f.name}|${f.size}`;if($('if').checked)await mdel(mk);
+    const st=(await mget(mk))||{line:0},n=await countLines(f);T+=n;P0+=Math.min(st.line,n);plan.push({f,mk,start:st.line})}
+  ctx.log(`Total ${T.toLocaleString()} entry di ${plan.length} file (${P0.toLocaleString()} sudah diproses sebelumnya)`);
+  const t0=Date.now();
+  const tick=force=>{if(!force&&Date.now()-last<1000)return;last=Date.now();
+    const s=ok+skipped+failed,el=(Date.now()-t0)/1000,m={name,count:P0+s,failed,processed:P0+s,total:T,perSec:+(s/el).toFixed(1),eta:s>=5?Math.max(T-P0-s,0)/(s/el):null};
+    ctx.show(statLine(m),T?Math.min(100,m.processed/T*100):0)};
+  const done=()=>{sess++;tick()};
+  const sendGroup=async lines=>{
+    let pend=[];
+    for(const l of lines){try{pend.push({e:JSON.parse(l),tries:0})}catch{failed++;ctx.log('Baris rusak dilewati');done()}}
+    while(pend.length){
+      if(ctx.stop)throw new Error('Dihentikan');
+      await ctx.pacer.take(pend.length);
+      let r;
+      try{r=await api('set',{universeId:uid,key,overwrite,entries:pend.map(x=>x.e)})}
+      catch(e){if(e.fatal)throw e;ctx.pacer.penalty(3000);
+        pend=pend.filter(it=>{if(++it.tries<8)return true;failed++;ctx.log(`GAGAL ${it.e.datastore}/${it.e.key}: ${e.message}`);done();return false});continue}
+      const next=[];
+      r.results.forEach((x,i)=>{const it=pend[i];
+        if(x.status===200){ok++;done()}else if(x.status===409){skipped++;done()}
+        else if(x.status===429||x.status>=500){ctx.pacer.penalty((x.retryAfter||2)*1000);
+          if(++it.tries<8)next.push(it);else{failed++;ctx.log(`GAGAL ${it.e.datastore}/${it.e.key}: HTTP ${x.status}`);done()}}
+        else{failed++;ctx.log(`GAGAL ${it.e.datastore}/${it.e.key}: HTTP ${x.status} ${x.error||''}`);done()}});
+      pend=next;
+    }
+  };
+  const group=lines=>{const gs=[];let g=[],sz=0;
+    for(const l of lines){if(g.length&&(g.length>=ctx.batch||sz+l.length>3e6)){gs.push(g);g=[];sz=0}g.push(l);sz+=l.length}
+    if(g.length)gs.push(g);return gs};
+  for(const {f,mk,start} of plan){
+    name=f.name;let idx=0,chunk=[];ctx.log(`${start?'Lanjut':'Mulai'} ${f.name}`);
+    const flush=async upTo=>{const gs=group(chunk);chunk=[];await Promise.all(gs.map(sendGroup));await mput(mk,{line:upTo})};
+    for await(const line of readLines(f)){
+      idx++;if(idx<=start||!line.trim())continue;
+      chunk.push(line);if(chunk.length>=ctx.par*ctx.batch)await flush(idx);
+    }
+    if(chunk.length)await flush(idx);else await mput(mk,{line:idx});
+    tick(true);ctx.log(`Selesai ${f.name}`);
+  }
+  ctx.log(`Selesai: ${ok} berhasil, ${skipped} dilewati (sudah ada), ${failed} gagal`);
+}
+
+// ---------- UI ----------
+const resetEx=()=>{state.ex=null;setSt('es','','Belum divalidasi.');fill([])};
+const resetIm=()=>{state.im=null;setSt('is','','Belum divalidasi.');refresh()};
+$('ak').oninput=()=>{resetEx();if(!$('diff').checked)resetIm()};
+$('ep').oninput=resetEx;$('ak2').oninput=resetIm;$('ip').oninput=resetIm;$('ifile').onchange=refresh;
+$('diff').onchange=()=>{const d=$('diff').checked;$('k2wrap').hidden=!d;$('akl').textContent=d?'API key sumber (ekspor)':'API key Roblox';resetIm()};
+$('eye').onclick=()=>{const hide=$('ak').type==='password';$('ak').type=$('ak2').type=hide?'text':'password';$('eye').textContent=hide?'Sembunyikan':'Lihat'};
+$('eca').onclick=selAll;$('sr').onclick=renderSaved;
+$('ev').onclick=async()=>{
+  $('ev').disabled=true;setSt('es','','Memvalidasi & scan...');state.ex=null;
+  try{const r=await api('validate',{placeId:$('ep').value.trim(),key:exKey()});
+    state.ex=r;setSt('es','ok',`Tertaut ke ${nm(r)} · universe ${r.universeId}. ${r.stores.length} DataStore ditemukan.`);fill(r.stores);
+  }catch(e){setSt('es','err',e.message)}
+  $('ev').disabled=false;refresh();
+};
+$('iv').onclick=async()=>{
+  $('iv').disabled=true;setSt('is','','Memvalidasi...');state.im=null;
+  try{const r=await api('validate',{placeId:$('ip').value.trim(),key:imKey()});
+    state.im=r;setSt('is','ok',`Tertaut ke ${nm(r)} · universe ${r.universeId}. Saat ini ada ${r.stores.length} DataStore di tujuan.`);
+  }catch(e){setSt('is','err',e.message)}
+  $('iv').disabled=false;refresh();
+};
+$('eb').onclick=()=>run('e',doExport);
+$('ib').onclick=()=>run('i',doImport);
+renderSaved();
+</script></body></html>
