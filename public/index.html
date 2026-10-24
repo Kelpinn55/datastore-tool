@@ -33,6 +33,8 @@ button:disabled{opacity:.45;cursor:not-allowed}
 details{margin-top:14px;border:1px solid var(--line);border-radius:8px;padding:8px 12px}
 summary{cursor:pointer;font-weight:600;font-size:13px;color:var(--mute)}
 .row{display:flex;gap:10px;margin:10px 0 4px}.row>div{flex:1}
+.ord{margin-top:14px;border:1px dashed var(--line);border-radius:8px;padding:10px 12px}
+.ord small{display:block;color:var(--mute);font-size:12px;margin-top:6px}
 .actions{display:flex;gap:8px;margin-top:16px}.actions button:first-child{flex:2}.actions button:last-child{flex:1}
 .bar{height:6px;border-radius:99px;background:var(--soft);margin-top:16px;overflow:hidden;border:1px solid var(--line)}
 .bar i{display:block;height:100%;width:0;background:var(--acc);transition:width .4s}
@@ -41,13 +43,13 @@ pre{margin:8px 0 0;background:var(--log);color:var(--logink);padding:12px;border
 .note{font-size:13px;color:var(--mute);margin-top:22px;max-width:840px}
 </style></head><body><main>
 <header><h1>DataStore Transfer</h1>
-<p>Salin DataStore dari satu place ke place lain lewat Roblox Open Cloud. Proses berjalan di browser dan bisa dilanjutkan kalau terputus. Biarkan tab ini tetap terbuka selama proses.</p></header>
+<p>Salin DataStore (biasa dan Ordered) dari satu place ke place lain lewat Roblox Open Cloud. Proses berjalan di browser dan bisa dilanjutkan kalau terputus. Biarkan tab ini tetap terbuka selama proses.</p></header>
 
 <section class="card conn">
 <div><label for="pw">Password akses (ACCESS_PASSWORD di Vercel)</label>
 <input id="pw" type="password" autocomplete="off" placeholder="Password yang kamu atur saat deploy"></div>
 <div><label for="ak" id="akl">API key Roblox</label>
-<div class="inp"><input id="ak" type="password" autocomplete="off" placeholder="Tempel API key Open Cloud (universe-datastores)">
+<div class="inp"><input id="ak" type="password" autocomplete="off" placeholder="Tempel API key Open Cloud (universe-datastores / ordered-data-stores)">
 <button class="ghost" id="eye" type="button">Lihat</button></div></div>
 <label class="sw"><input type="checkbox" id="diff"><span>Place tujuan beda creator / group (pakai API key berbeda)</span></label>
 <div id="k2wrap" hidden><label for="ak2">API key tujuan (impor)</label>
@@ -58,6 +60,10 @@ pre{margin:8px 0 0;background:var(--log);color:var(--logink);padding:12px;border
 <section class="card"><div class="head"><b>1</b><h2>Ekspor</h2><small>dari place sumber</small></div>
 <div class="pid"><div><label for="ep">Place ID sumber</label><input id="ep" type="text" inputmode="numeric"></div>
 <button class="ghost" id="ev">Validasi &amp; scan</button></div>
+<div class="ord"><label>Ordered DataStore (opsional)</label>
+<div class="row"><div><label for="on">Nama</label><input id="on" type="text" placeholder="contoh: DonorTotals" autocomplete="off"></div>
+<div><label for="os">Scope</label><input id="os" type="text" value="PROD" autocomplete="off"></div></div>
+<small>Ordered DataStore tidak muncul di scan, jadi nama dan scope harus diketik. Kosongkan nama kalau tidak dipakai.</small></div>
 <div class="st" id="es">Belum divalidasi.</div>
 <div class="listbar" id="ecb" hidden><label>DataStore yang diekspor</label><button class="link" id="eca">Pilih semua / kosongkan</button></div>
 <div class="list" id="ec" hidden></div>
@@ -85,11 +91,13 @@ pre{margin:8px 0 0;background:var(--log);color:var(--logink);padding:12px;border
 <div class="actions"><button id="ib" disabled>Mulai / lanjutkan</button><button class="ghost" id="ix" disabled>Stop</button></div>
 <div class="bar"><i id="igi"></i></div><div class="stat" id="it"></div><pre id="il"></pre></section>
 </div>
-<p class="note">Izin API key (universe-datastores): ekspor butuh List Datastores, List Entries, Read Entry; impor butuh List Datastores, Create Entry, Update Entry. Satu key cukup kalau sumber dan tujuan milik creator / group yang sama. Batas Roblox 300 request/menit per universe dipakai bersama server game yang sedang berjalan. Hasil ekspor disimpan di browser ini (IndexedDB) dan langsung bisa diimpor tanpa diunduh. Tombol Unduh hanya untuk cadangan: unduh sebelum menghapus data situs. Entry di atas ~3 MB tidak bisa melewati proxy.</p>
+<p class="note">Izin API key: DataStore biasa (universe-datastores) butuh List Datastores, List Entries, Read Entry untuk ekspor, dan Create Entry, Update Entry untuk impor. Ordered DataStore memakai API system terpisah (Ordered Data Stores) dengan izin baca untuk ekspor dan tulis untuk impor. Satu key cukup kalau sumber dan tujuan milik creator / group yang sama. Batas Roblox 300 request/menit per universe dipakai bersama server game yang sedang berjalan. Hasil ekspor disimpan di browser ini (IndexedDB) dan langsung bisa diimpor tanpa diunduh. Hasil ordered bernama ordered_NAMA_SCOPE. Tombol Unduh hanya untuk cadangan: unduh sebelum menghapus data situs. Entry di atas ~3 MB tidak bisa melewati proxy.</p>
 </main>
 <script>
 const $=id=>document.getElementById(id),state={ex:null,im:null},cur={},enc=encodeURIComponent;
 const exKey=()=>$('ak').value.trim(),imKey=()=>($('diff').checked?$('ak2'):$('ak')).value.trim();
+const ordName=()=>$('on').value.trim();
+const ord=()=>{const n=ordName();return n?{name:n,scope:$('os').value.trim()||'global'}:null};
 const fmt=s=>s==null?'?':s>=3600?(s/3600).toFixed(1)+' jam':s>=60?Math.round(s/60)+' menit':Math.round(s)+' detik';
 const clock=eta=>{if(eta==null)return '';const d=new Date(Date.now()+eta*1000),same=d.toDateString()===new Date().toDateString();
   return ' | selesai ~'+d.toLocaleString('id-ID',same?{hour:'2-digit',minute:'2-digit'}:{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})};
@@ -104,11 +112,12 @@ function fill(items){
 }
 const selAll=box=>{const cs=[...$(box).querySelectorAll('input')],all=cs.every(c=>c.checked);cs.forEach(c=>c.checked=!all);refresh()};
 function refresh(){
-  $('eb').disabled=!(state.ex&&checked('ec').length)||!!cur.e;
+  $('eb').disabled=!(state.ex&&(checked('ec').length||ordName()))||!!cur.e;
   $('ib').disabled=!(state.im&&(checked('ic').length||$('ifile').files.length))||!!cur.i;
 }
 function setSt(id,cls,t){const e=$(id);e.className='st '+cls;e.textContent=t}
 const nm=r=>{const a=r.placeName,b=r.experienceName;return a&&b&&a!==b?`"${a}" (experience "${b}")`:a||b?`"${a||b}"`:'place ini'};
+const ordInfo=r=>!r.ordered?'':r.ordered.ok?(r.ordered.empty?' Ordered: terbaca tapi kosong (cek nama / scope).':' Ordered: OK.'):' Ordered GAGAL: '+r.ordered.error;
 
 // ---------- IndexedDB (hasil ekspor + progres) ----------
 const idbp=new Promise((res,rej)=>{const r=indexedDB.open('dstx',1);r.onupgradeneeded=()=>{r.result.createObjectStore('meta');r.result.createObjectStore('parts')};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
@@ -194,8 +203,29 @@ async function fetchEntries(ctx,uid,key,store,keys,onDone){
   while(q.length&&!ctx.stop)await Promise.all(Array.from({length:ctx.par},work));
   return{lines,complete:!q.length};
 }
+// Ordered datastore: entry + nilai datang langsung dari list (100 per request)
+async function exportOrdered(ctx,pid,uid,key,cfg){
+  const s=`ordered_${cfg.name}_${cfg.scope}`;
+  if($('ef').checked)await delStore(pid,s);
+  const m=(await mget(`ex|${pid}|${enc(s)}`))||{placeId:pid,store:s,cursor:'',done:false,total:0,n:0,part:0};
+  if(m.done){ctx.log(`Lewati ordered "${cfg.name}" (sudah selesai)`);return}
+  ctx.log(`${m.cursor?'Lanjut':'Mulai'} ordered "${cfg.name}" (scope ${cfg.scope})`);
+  await mput(`ex|${pid}|${enc(s)}`,m);renderSaved().catch(()=>{});
+  let cursor=m.cursor;
+  while(!ctx.stop){
+    const p=await call(ctx,'olist',{universeId:uid,key,name:cfg.name,scope:cfg.scope,cursor});
+    const text=p.entries.map(e=>JSON.stringify({ordered:true,datastore:cfg.name,scope:cfg.scope,key:e.id,value:e.value})+'\n').join('');
+    cursor=p.next||'';m.cursor=cursor;m.n+=p.entries.length;m.total=m.n;m.done=!cursor;if(text)m.part++;
+    await savePart(pid,s,m.part,text,m);
+    ctx.total+=p.entries.length;
+    ctx.show(`ordered:${cfg.name} | ${m.n.toLocaleString()} entry`,cursor?0:100);
+    renderSaved().catch(()=>{});
+    if(!cursor)break;
+  }
+  if(m.done)ctx.log(`Selesai ordered "${cfg.name}": ${m.n.toLocaleString()} entry`);
+}
 async function doExport(ctx){
-  const pid=$('ep').value.trim(),key=exKey(),uid=state.ex.universeId,stores=checked('ec'),metas={};
+  const pid=$('ep').value.trim(),key=exKey(),uid=state.ex.universeId,stores=checked('ec'),cfg=ord(),metas={};
   navigator.storage?.persist?.();
   for(const s of stores){
     if($('ef').checked)await delStore(pid,s);
@@ -206,7 +236,7 @@ async function doExport(ctx){
   const P0=stores.reduce((a,s)=>a+metas[s].n,0);
   let countDone=stores.every(s=>metas[s].total),found=0;
   const T=()=>countDone?stores.reduce((a,s)=>a+metas[s].total,0):0;
-  ctx.log(`Universe ${uid} | ${stores.length} DataStore`);
+  ctx.log(`Universe ${uid} | ${stores.length} DataStore${cfg?` + ordered "${cfg.name}"`:''}`);
   const counter=(!countDone&&$('ec2').checked)?(async()=>{
     for(const s of stores){const m=metas[s];if(m.total)continue;let c='',n=0;
       do{const p=await call(ctx,'list',{universeId:uid,key,store:s,cursor:c});n+=p.keys.length;found=n;c=p.next||''}while(c&&!ctx.stop);
@@ -234,6 +264,7 @@ async function doExport(ctx){
       if(buf.length||cursor!==m.cursor)await save(false);
       tick(s,true);if(!ctx.stop)ctx.log(`Selesai "${s}"`);
     }
+    if(cfg&&!ctx.stop)await exportOrdered(ctx,pid,uid,key,cfg);
     ctx.log(`${ctx.stop?'Dihentikan':'Selesai'}: ${ctx.total} entry diekspor, ${ctx.failed} gagal. Hasil sudah muncul di kartu Impor.`);
   }finally{
     ctx.stop=true;await counter.catch(()=>{});
@@ -333,20 +364,24 @@ const resetEx=()=>{state.ex=null;setSt('es','','Belum divalidasi.');fill([])};
 const resetIm=()=>{state.im=null;setSt('is','','Belum divalidasi.');refresh()};
 $('ak').oninput=()=>{resetEx();if(!$('diff').checked)resetIm()};
 $('ep').oninput=resetEx;$('ak2').oninput=resetIm;$('ip').oninput=resetIm;$('ifile').onchange=refresh;
+$('on').oninput=refresh;$('os').oninput=()=>{if(state.ex)resetEx()};
 $('diff').onchange=()=>{const d=$('diff').checked;$('k2wrap').hidden=!d;$('akl').textContent=d?'API key sumber (ekspor)':'API key Roblox';resetIm()};
 $('eye').onclick=()=>{const hide=$('ak').type==='password';$('ak').type=$('ak2').type=hide?'text':'password';$('eye').textContent=hide?'Sembunyikan':'Lihat'};
 $('eca').onclick=()=>selAll('ec');$('ica').onclick=()=>selAll('ic');$('sr').onclick=renderSaved;
 $('ev').onclick=async()=>{
   $('ev').disabled=true;setSt('es','','Memvalidasi & scan...');state.ex=null;
-  try{const r=await api('validate',{placeId:$('ep').value.trim(),key:exKey()});
-    state.ex=r;setSt('es','ok',`Tertaut ke ${nm(r)} · universe ${r.universeId}. ${r.stores.length} DataStore ditemukan.`);fill(r.stores);
+  try{const r=await api('validate',{placeId:$('ep').value.trim(),key:exKey(),ordered:ord()});
+    state.ex=r;
+    const msg=`Tertaut ke ${nm(r)} · universe ${r.universeId}. ${r.stores.length} DataStore ditemukan.`+(r.storesError?` (DataStore biasa tidak terbaca: ${r.storesError})`:'')+ordInfo(r);
+    setSt('es',r.ordered&&!r.ordered.ok?'err':'ok',msg);fill(r.stores);
   }catch(e){setSt('es','err',e.message)}
   $('ev').disabled=false;refresh();
 };
 $('iv').onclick=async()=>{
   $('iv').disabled=true;setSt('is','','Memvalidasi...');state.im=null;
-  try{const r=await api('validate',{placeId:$('ip').value.trim(),key:imKey()});
-    state.im=r;setSt('is','ok',`Tertaut ke ${nm(r)} · universe ${r.universeId}. Saat ini ada ${r.stores.length} DataStore di tujuan.`);
+  try{const r=await api('validate',{placeId:$('ip').value.trim(),key:imKey(),tolerant:true});
+    state.im=r;
+    setSt('is',r.storesError?'err':'ok',`Tertaut ke ${nm(r)} · universe ${r.universeId}. Saat ini ada ${r.stores.length} DataStore di tujuan.`+(r.storesError?` (DataStore biasa tidak terbaca: ${r.storesError}. Abaikan kalau hanya mengimpor ordered.)`:''));
   }catch(e){setSt('is','err',e.message)}
   $('iv').disabled=false;refresh();
 };
